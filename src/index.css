@@ -359,9 +359,9 @@ body {
 }
 
 .footer-signature a {
-  color: var(--accent-light);
+  color: var(--accent-color);
   text-decoration: none;
-  font-weight: 700;
+  font-weight: 800;
   transition: all 0.3s ease;
   position: relative;
 }
@@ -373,7 +373,7 @@ body {
   height: 2px;
   bottom: -2px;
   left: 0;
-  background-color: var(--accent-light);
+  background-color: var(--accent-color);
   transform: scaleX(0);
   transition: transform 0.3s ease;
 }

@@ -52,7 +52,9 @@ function App() {
         if (!contentLength) {
           return response.text();
         }
-        const total = parseInt(contentLength, 10);
+        // Exact size of data.csv (uncompressed bytes) to avoid 500% progress due to gzip mismatch
+        const exactUncompressedSize = 89845366;
+        let total = exactUncompressedSize;
         let loaded = 0;
         const reader = response.body.getReader();
         const chunks = [];
@@ -61,7 +63,11 @@ function App() {
           if (done) break;
           chunks.push(value);
           loaded += value.length;
-          setDownloadProgress(Math.round((loaded / total) * 100));
+          
+          let percentage = Math.round((loaded / total) * 100);
+          if (percentage > 100) percentage = 100; // Cap at 100% in case size changes
+          
+          setDownloadProgress(percentage);
         }
         const blob = new Blob(chunks);
         return blob.text();
