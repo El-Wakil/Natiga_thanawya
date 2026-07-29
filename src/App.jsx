@@ -329,7 +329,7 @@ function App() {
       <div className="footer-signature">
         Made by{' '}
         <a href="https://melwakil.dev" target="_blank" rel="noopener noreferrer">
-          Mohamed Elwakil
+          Mohamed Elwakil ↗
         </a>
       </div>
     </div>
