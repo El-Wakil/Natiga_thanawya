@@ -289,3 +289,26 @@ body {
     text-align: center;
   }
 }
+
+.footer-signature {
+  margin-top: auto;
+  padding-top: 2rem;
+  text-align: center;
+  color: #777;
+  font-family: var(--font-text);
+  font-size: 0.9rem;
+  direction: ltr;
+}
+
+.footer-signature a {
+  color: var(--primary-color);
+  text-decoration: none;
+  font-weight: 600;
+  transition: color 0.2s;
+}
+
+.footer-signature a:hover {
+  color: var(--accent-color);
+  text-decoration: underline;
+}
+
