@@ -43,12 +43,17 @@ function App() {
   const [dropdownVisible, setDropdownVisible] = useState(false);
   const dropdownRef = useRef(null);
 
-  // Load JSON Data
+  // Load CSV Data
   useEffect(() => {
-    fetch('./data.json')
-      .then((res) => res.json())
-      .then((jsonData) => {
-        setData(jsonData);
+    fetch('./data.csv')
+      .then((res) => res.text())
+      .then((csvText) => {
+        const rows = csvText.split('\n');
+        // Remove header row
+        if (rows[0] && rows[0].includes('seating_no')) {
+          rows.shift();
+        }
+        setData(rows);
         setLoading(false);
       })
       .catch((error) => {
@@ -77,20 +82,38 @@ function App() {
     const term = searchTerm.trim().toLowerCase();
     const results = [];
     
+    // Fast loop over strings
     for (let i = 0; i < data.length; i++) {
-      const student = data[i];
+      const line = data[i];
+      if (!line) continue;
+      
+      // Extremely fast substring check before parsing the line
+      if (!line.includes(term)) continue;
+      
+      // Format: seating_no,"arabic_name",total_degree,"student_case_desc",percentage
+      const parts = line.replace(/"/g, '').split(',');
+      if (parts.length < 5) continue;
+      
+      const seating_no = parts[0];
+      const arabic_name = parts[1];
+      const total_degree = parts[2];
+      const student_case_desc = parts[3];
+      const percentage = parseFloat(parts[4]);
+
+      const student = { seating_no, arabic_name, total_degree, student_case_desc, 'النسبة المئوية': percentage };
+
       if (searchMode === 'name') {
-        if (student.arabic_name && student.arabic_name.toLowerCase().includes(term)) {
+        if (arabic_name && arabic_name.toLowerCase().includes(term)) {
           results.push(student);
         }
       } else {
         // seatingNo
-        if (student.seating_no && student.seating_no.toString().startsWith(term)) {
+        if (seating_no && seating_no.startsWith(term)) {
           results.push(student);
         }
       }
       
-      // Limit to 50 results for performance
+      // Limit to 50 results for UI performance
       if (results.length >= 50) break;
     }
     
@@ -136,7 +159,7 @@ function App() {
       <div className="container" style={{ justifyContent: 'center' }}>
         <div className="loading-container">
           <h2>جاري تحميل قاعدة البيانات...</h2>
-          <p>يرجى الانتظار، قد يستغرق هذا بضع ثوانٍ</p>
+          <p>يرجى الانتظار للحظات، جاري تحميل الملف (سيكون هذا سريعاً جداً)</p>
         </div>
       </div>
     );
@@ -257,3 +280,4 @@ function App() {
 }
 
 export default App;
+
