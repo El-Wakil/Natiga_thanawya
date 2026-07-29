@@ -327,7 +327,7 @@ function App() {
       )}
 
       <div className="footer-signature">
-        Made with <span style={{ color: '#c62828' }}>❤</span> by{' '}
+        Made by{' '}
         <a href="https://melwakil.dev" target="_blank" rel="noopener noreferrer">
           Mohamed Elwakil
         </a>
