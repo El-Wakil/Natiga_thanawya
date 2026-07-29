@@ -35,6 +35,7 @@ const HighlightedText = ({ text, highlight }) => {
 function App() {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [downloadProgress, setDownloadProgress] = useState(0); // Progress state
   
   const [searchMode, setSearchMode] = useState('name'); // 'name' or 'seatingNo'
   const [searchTerm, setSearchTerm] = useState('');
@@ -43,10 +44,28 @@ function App() {
   const [dropdownVisible, setDropdownVisible] = useState(false);
   const dropdownRef = useRef(null);
 
-  // Load CSV Data
+  // Load CSV Data with Progress
   useEffect(() => {
     fetch('./data.csv')
-      .then((res) => res.text())
+      .then(async (response) => {
+        const contentLength = response.headers.get('content-length');
+        if (!contentLength) {
+          return response.text();
+        }
+        const total = parseInt(contentLength, 10);
+        let loaded = 0;
+        const reader = response.body.getReader();
+        const chunks = [];
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          chunks.push(value);
+          loaded += value.length;
+          setDownloadProgress(Math.round((loaded / total) * 100));
+        }
+        const blob = new Blob(chunks);
+        return blob.text();
+      })
       .then((csvText) => {
         const rows = csvText.split('\n');
         // Remove header row
@@ -157,9 +176,34 @@ function App() {
   if (loading) {
     return (
       <div className="container" style={{ justifyContent: 'center' }}>
-        <div className="loading-container">
+        <div className="loading-container" style={{ textAlign: 'center' }}>
           <h2>جاري تحميل قاعدة البيانات...</h2>
-          <p>يرجى الانتظار للحظات، جاري تحميل الملف (سيكون هذا سريعاً جداً)</p>
+          <p style={{ marginBottom: '1.5rem' }}>يرجى الانتظار للحظات، جاري تحميل الملف بناءً على سرعة الإنترنت لديك.</p>
+          
+          <div style={{ width: '100%', maxWidth: '400px', margin: '0 auto', backgroundColor: '#e0e0e0', borderRadius: '8px', overflow: 'hidden', height: '24px', position: 'relative' }}>
+            <div style={{
+              width: `${downloadProgress}%`,
+              backgroundColor: 'var(--primary-color)',
+              height: '100%',
+              transition: 'width 0.3s ease'
+            }}></div>
+            <span style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              color: downloadProgress > 50 ? '#fff' : '#333',
+              fontWeight: 'bold',
+              fontSize: '0.9rem',
+              textShadow: downloadProgress > 50 ? '0 1px 2px rgba(0,0,0,0.3)' : 'none'
+            }}>
+              {downloadProgress}%
+            </span>
+          </div>
+          
+          {downloadProgress === 100 && (
+            <p style={{ marginTop: '1rem', color: 'var(--primary-color)', fontWeight: 'bold' }}>جاري فك تشفير البيانات، لحظات...</p>
+          )}
         </div>
       </div>
     );
