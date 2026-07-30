@@ -11,16 +11,25 @@ const getGrade = (percentage) => {
 };
 
 // Component to render highlighted text
-const HighlightedText = ({ text, highlight }) => {
+// Component to render highlighted text
+const HighlightedText = ({ text, highlight, multiWordSearch }) => {
   if (!highlight.trim()) {
     return <span>{text}</span>;
   }
-  const regex = new RegExp(`(${highlight})`, 'gi');
+  
+  const searchTerms = multiWordSearch ? highlight.trim().split(/\s+/).filter(Boolean) : [highlight.trim()];
+  if (searchTerms.length === 0) return <span>{text}</span>;
+
+  // Escape special characters and create a regex matching any of the words
+  const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const regex = new RegExp(`(${searchTerms.map(escapeRegExp).join('|')})`, 'gi');
+  
   const parts = text.split(regex);
   return (
     <span>
       {parts.map((part, i) =>
-        regex.test(part) ? (
+        // match regex to know if it's a highlighted part
+        new RegExp(`^(${searchTerms.map(escapeRegExp).join('|')})$`, 'i').test(part) ? (
           <span key={i} className="highlight">
             {part}
           </span>
@@ -39,6 +48,8 @@ function App() {
   
   const [searchMode, setSearchMode] = useState('name'); // 'name' or 'seatingNo'
   const [searchTerm, setSearchTerm] = useState('');
+  const [multiWordSearch, setMultiWordSearch] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(50); // New state to limit initial render
   const [selectedStudent, setSelectedStudent] = useState(null);
   
   const [dropdownVisible, setDropdownVisible] = useState(false);
@@ -105,6 +116,7 @@ function App() {
     if (!searchTerm.trim()) return [];
 
     const term = searchTerm.trim().toLowerCase();
+    const searchTerms = multiWordSearch ? term.split(/\s+/) : [term];
     const results = [];
     
     // Fast loop over strings
@@ -113,7 +125,14 @@ function App() {
       if (!line) continue;
       
       // Extremely fast substring check before parsing the line
-      if (!line.includes(term)) continue;
+      let lineMatch = true;
+      for (let j = 0; j < searchTerms.length; j++) {
+        if (!line.includes(searchTerms[j])) {
+          lineMatch = false;
+          break;
+        }
+      }
+      if (!lineMatch) continue;
       
       // Format: seating_no,"arabic_name",total_degree,"student_case_desc",percentage
       const parts = line.replace(/"/g, '').split(',');
@@ -128,8 +147,18 @@ function App() {
       const student = { seating_no, arabic_name, total_degree, student_case_desc, 'النسبة المئوية': percentage };
 
       if (searchMode === 'name') {
-        if (arabic_name && arabic_name.toLowerCase().includes(term)) {
-          results.push(student);
+        if (arabic_name) {
+          const nameLower = arabic_name.toLowerCase();
+          let nameMatch = true;
+          for (let j = 0; j < searchTerms.length; j++) {
+            if (!nameLower.includes(searchTerms[j])) {
+              nameMatch = false;
+              break;
+            }
+          }
+          if (nameMatch) {
+            results.push(student);
+          }
         }
       } else {
         // seatingNo
@@ -138,12 +167,12 @@ function App() {
         }
       }
       
-      // Limit to 50 results for UI performance
-      if (results.length >= 50) break;
+      // Showing all results as requested
+      // if (results.length >= 50) break;
     }
     
     return results;
-  }, [data, searchTerm, searchMode]);
+  }, [data, searchTerm, searchMode, multiWordSearch]);
 
   // Handle exact match auto-select for seating number
   useEffect(() => {
@@ -160,6 +189,7 @@ function App() {
       if (val !== '' && !/^\d+$/.test(val)) return;
     }
     setSearchTerm(val);
+    setVisibleCount(50); // Reset visible count on search
     setDropdownVisible(true);
     // Hide selected student when typing anew, unless it's auto-selected
     if (selectedStudent && val !== selectedStudent.seating_no?.toString() && val !== selectedStudent.arabic_name) {
@@ -169,6 +199,7 @@ function App() {
 
   const clearSearch = () => {
     setSearchTerm('');
+    setVisibleCount(50);
     setSelectedStudent(null);
     setDropdownVisible(false);
   };
@@ -177,6 +208,14 @@ function App() {
     setSelectedStudent(student);
     setSearchTerm(searchMode === 'name' ? student.arabic_name : student.seating_no.toString());
     setDropdownVisible(false);
+  };
+
+  const handleScroll = (e) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.target;
+    // If scrolled within 50px of the bottom, load more
+    if (scrollHeight - scrollTop - clientHeight < 50) {
+      setVisibleCount(prev => Math.min(prev + 50, searchResults.length));
+    }
   };
 
   if (loading) {
@@ -243,6 +282,20 @@ function App() {
         </button>
       </div>
 
+      {searchMode === 'name' && (
+        <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+          <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', color: '#555' }}>
+            <input 
+              type="checkbox" 
+              checked={multiWordSearch} 
+              onChange={(e) => setMultiWordSearch(e.target.checked)} 
+              style={{ cursor: 'pointer', width: '18px', height: '18px', accentColor: 'var(--primary-color)' }}
+            />
+            <span style={{ fontFamily: 'var(--font-text)', fontSize: '1rem' }}>تفعيل البحث بـ أسماء منفصلة</span>
+          </label>
+        </div>
+      )}
+
       <div className="search-container" ref={dropdownRef}>
         <input
           type="text"
@@ -260,16 +313,16 @@ function App() {
         )}
 
         {dropdownVisible && searchTerm.trim() && !selectedStudent && (
-          <div className="dropdown">
+          <div className="dropdown" onScroll={handleScroll}>
             {searchResults.length > 0 ? (
-              searchResults.map((student) => (
+              searchResults.slice(0, visibleCount).map((student) => (
                 <div
                   key={student.seating_no}
                   className="dropdown-item"
                   onClick={() => selectStudent(student)}
                 >
                   {searchMode === 'name' ? (
-                    <HighlightedText text={student.arabic_name} highlight={searchTerm} />
+                    <HighlightedText text={student.arabic_name} highlight={searchTerm} multiWordSearch={multiWordSearch} />
                   ) : (
                     <span>
                       <HighlightedText text={student.seating_no.toString()} highlight={searchTerm} />
